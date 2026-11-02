@@ -6,10 +6,7 @@ import {
   Camera,
   Calculator,
   FileText,
-  MapPin,
-  Layers,
   Settings,
-  Sparkles,
 } from 'lucide-react';
 
 interface AppCardProps {
@@ -35,10 +32,8 @@ export const AppCard: React.FC<AppCardProps> = ({
         return <Calculator size={22} />;
       case 'file-text':
         return <FileText size={22} />;
-      case 'map-pin':
-        return <MapPin size={22} />;
       default:
-        return <Layers size={22} />;
+        return <Camera size={22} />;
     }
   };
 
@@ -46,32 +41,22 @@ export const AppCard: React.FC<AppCardProps> = ({
     switch (app.status) {
       case 'Live':
         return <span className="status-badge status-live">● Live</span>;
-      case 'Cloud Ready':
-        return <span className="status-badge status-ready">⚡ Ready</span>;
-      case 'In Development':
-        return <span className="status-badge status-dev">◌ Dev</span>;
+      case 'Ready':
+        return <span className="status-badge status-ready">● Ready</span>;
       default:
-        return <span className="status-badge status-internal">◈ Internal</span>;
+        return <span className="status-badge status-dev">● Dev</span>;
     }
   };
 
   const isConfigurable = app.id === 'salary-calculator';
 
   return (
-    <div className={`app-card ${app.featured ? 'is-featured' : ''}`}>
+    <div className="app-card">
       <div className="card-top">
         <div className="card-header-left">
           <div className="card-icon-frame">{renderIcon()}</div>
           <div>
-            <div className="card-title-row">
-              <h3 className="card-title">{app.title}</h3>
-              {app.featured && (
-                <span className="featured-tag">
-                  <Sparkles size={11} />
-                  Featured
-                </span>
-              )}
-            </div>
+            <h3 className="card-title">{app.title}</h3>
             <p className="card-tagline">{app.tagline}</p>
           </div>
         </div>
@@ -81,36 +66,13 @@ export const AppCard: React.FC<AppCardProps> = ({
 
       <p className="card-description">{app.description}</p>
 
-      {/* Highlight stat / host */}
-      <div className="card-meta-row">
-        <div className="meta-capsule">
-          <span className="meta-label">Host:</span>
-          <span className="meta-value">{app.hostPlatform}</span>
-        </div>
-        {app.highlightStat && (
-          <div className="meta-capsule">
-            <span className="meta-label">{app.highlightStat.label}:</span>
-            <span className="meta-value font-mono">{app.highlightStat.value}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Tech Stack Pills */}
-      <div className="tech-stack-row">
-        {app.techStack.map((tech) => (
-          <span key={tech} className="tech-pill">
-            {tech}
-          </span>
-        ))}
-      </div>
-
       {/* Actions Footer */}
       <div className="card-actions">
         {app.previewSupported && (
           <button
             onClick={() => onPreview(app)}
             className="btn btn-secondary"
-            title="Inspect application inside preview window"
+            title="Preview inside window"
           >
             <Eye size={14} />
             <span>Preview</span>
@@ -131,7 +93,7 @@ export const AppCard: React.FC<AppCardProps> = ({
           <button
             onClick={() => onConfigureUrl(app)}
             className="btn-icon"
-            title="Configure Cloud URL"
+            title="Set Live Streamlit URL"
           >
             <Settings size={14} />
           </button>

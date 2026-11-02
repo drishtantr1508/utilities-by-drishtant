@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { APPS_DATA } from './data/apps';
-import { AppItem, AppCategory } from './types';
+import { AppItem } from './types';
 import { Navbar } from './components/Navbar';
 import { AppCard } from './components/AppCard';
 import { PreviewModal } from './components/PreviewModal';
-import { CloudStatusDrawer } from './components/CloudStatusDrawer';
 import { ConfigureUrlModal } from './components/ConfigureUrlModal';
-import { Search, Grid, Terminal, ArrowUpRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme state synced with system preference or localStorage
@@ -16,14 +15,9 @@ export const App: React.FC = () => {
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Category & search filter
-  const [selectedCategory, setSelectedCategory] = useState<AppCategory>('All');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Modals state
   const [previewApp, setPreviewApp] = useState<AppItem | null>(null);
   const [configuringApp, setConfiguringApp] = useState<AppItem | null>(null);
-  const [isStatusDrawerOpen, setIsStatusDrawerOpen] = useState(false);
 
   // Custom URLs (e.g. for Streamlit deployed app)
   const [customUrls, setCustomUrls] = useState<Record<string, string>>(() => {
@@ -53,112 +47,66 @@ export const App: React.FC = () => {
     }
   };
 
-  const categories: AppCategory[] = [
-    'All',
-    'Finance & Tax',
-    'Creative & Media',
-    'Productivity',
-    'Automation',
-  ];
-
   const filteredApps = useMemo(() => {
-    return APPS_DATA.filter((app) => {
-      const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return APPS_DATA;
+    return APPS_DATA.filter(
+      (app) =>
         app.title.toLowerCase().includes(q) ||
         app.tagline.toLowerCase().includes(q) ||
-        app.description.toLowerCase().includes(q) ||
-        app.techStack.some((t) => t.toLowerCase().includes(q));
-
-      return matchesCategory && matchesSearch;
-    });
-  }, [selectedCategory, searchQuery]);
+        app.description.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   return (
     <div className="site-wrapper">
-      <Navbar
-        isDarkMode={isDarkMode}
-        onToggleTheme={toggleTheme}
-        onOpenStatus={() => setIsStatusDrawerOpen(true)}
-        totalApps={APPS_DATA.length}
-      />
+      <Navbar isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
 
       <main className="main-content">
-        {/* Hero Section */}
+        {/* Clean Hero Section */}
         <section className="hero-section">
           <div className="hero-inner">
-            <span className="hero-eyebrow">Drishtant Rai — Personal Suite</span>
-            <h1 className="hero-heading">
-              Personal applications, specialized tools & computational engines.
-            </h1>
+            <span className="hero-eyebrow">Drishtant Rai</span>
+            <h2 className="hero-heading">
+              Personal applications and computational tools.
+            </h2>
             <p className="hero-description">
-              A unified operating surface aggregating photography curation, Indian payroll simulation,
-              document management, and local backend services.
+              An independent suite of web applications spanning curatorial photography exhibitions,
+              dynamic tax engines, and personal workspaces.
             </p>
           </div>
         </section>
 
-        {/* Filter & Search Toolbar */}
-        <section className="toolbar-section">
-          <div className="toolbar-inner">
-            {/* Category Pills */}
-            <div className="category-group">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`category-pill ${selectedCategory === cat ? 'active' : ''}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <div className="search-input-wrapper">
-              <Search size={15} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search tools, stacks, keywords..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="search-clear-btn"
-                  aria-label="Clear search"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+        {/* Minimal Search Bar */}
+        <section className="search-section">
+          <div className="search-input-wrapper">
+            <Search size={15} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search applications..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="search-clear-btn"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
           </div>
         </section>
 
-        {/* Apps Grid */}
+        {/* Clean Apps Grid */}
         <section className="catalog-section">
-          <div className="catalog-header">
-            <div className="catalog-header-title">
-              <Grid size={15} />
-              <span>Catalog ({filteredApps.length})</span>
-            </div>
-          </div>
-
           {filteredApps.length === 0 ? (
             <div className="empty-state">
-              <p>No tools found matching "{searchQuery}"</p>
-              <button
-                onClick={() => {
-                  setSelectedCategory('All');
-                  setSearchQuery('');
-                }}
-                className="btn btn-secondary"
-              >
-                Reset Filters
+              <p>No applications found matching "{searchQuery}"</p>
+              <button onClick={() => setSearchQuery('')} className="btn btn-secondary">
+                Clear Search
               </button>
             </div>
           ) : (
@@ -175,46 +123,13 @@ export const App: React.FC = () => {
             </div>
           )}
         </section>
-
-        {/* Streamlit Deployment Guide Helper Callout */}
-        <section className="quickstart-callout">
-          <div className="callout-content">
-            <div className="callout-icon-frame">
-              <Terminal size={20} />
-            </div>
-            <div>
-              <h3 className="callout-title">Deploying Indian Salary Calculator to Streamlit Cloud</h3>
-              <p className="callout-desc">
-                Your `salary_calculator` project has been prepared with `requirements.txt` and git.
-                Push it to GitHub and deploy in 1 click at <code>share.streamlit.io</code> for dedicated 1GB RAM and free SSL.
-              </p>
-            </div>
-          </div>
-          <a
-            href="https://share.streamlit.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary callout-action-btn"
-          >
-            <span>Open Streamlit Cloud</span>
-            <ArrowUpRight size={14} />
-          </a>
-        </section>
       </main>
 
-      {/* Footer */}
+      {/* Clean Minimal Footer */}
       <footer className="site-footer">
         <div className="footer-inner">
-          <div className="footer-left">
-            <span className="footer-brand">Utilities by Drishtant</span>
-            <span className="footer-divider">•</span>
-            <span className="footer-copy">All engines operational</span>
-          </div>
-          <div className="footer-right">
-            <button onClick={() => setIsStatusDrawerOpen(true)} className="footer-link">
-              Cloud Infrastructure
-            </button>
-          </div>
+          <span className="footer-brand">Utilities by Drishtant</span>
+          <span className="footer-copy">© {new Date().getFullYear()} Drishtant Rai. All rights reserved.</span>
         </div>
       </footer>
 
@@ -231,12 +146,6 @@ export const App: React.FC = () => {
         currentUrl={configuringApp ? customUrls[configuringApp.id] || configuringApp.url : ''}
         onSave={handleSaveUrl}
         onClose={() => setConfiguringApp(null)}
-      />
-
-      {/* Cloud Infrastructure Drawer */}
-      <CloudStatusDrawer
-        isOpen={isStatusDrawerOpen}
-        onClose={() => setIsStatusDrawerOpen(false)}
       />
     </div>
   );

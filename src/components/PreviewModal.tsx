@@ -105,3 +105,4 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({ app, customUrl, onCl
     </div>
   );
 };
+

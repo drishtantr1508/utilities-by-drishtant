@@ -40,3 +40,4 @@ npm run build
 ```
 
 Ready for 1-click deployment on Netlify with the included `netlify.toml`.
+

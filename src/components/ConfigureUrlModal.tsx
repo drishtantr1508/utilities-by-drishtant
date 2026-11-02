@@ -72,3 +72,4 @@ export const ConfigureUrlModal: React.FC<ConfigureUrlModalProps> = ({
     </div>
   );
 };
+

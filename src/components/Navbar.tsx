@@ -1,19 +1,12 @@
 import React from 'react';
-import { Sun, Moon, Server, Command } from 'lucide-react';
+import { Sun, Moon, Command } from 'lucide-react';
 
 interface NavbarProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
-  onOpenStatus: () => void;
-  totalApps: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  isDarkMode,
-  onToggleTheme,
-  onOpenStatus,
-  totalApps,
-}) => {
+export const Navbar: React.FC<NavbarProps> = ({ isDarkMode, onToggleTheme }) => {
   return (
     <header className="site-header">
       <div className="header-inner">
@@ -22,25 +15,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Command size={18} />
           </div>
           <div>
-            <div className="brand-title-row">
-              <span className="brand-name">Utilities by Drishtant</span>
-              <span className="brand-badge">{totalApps} Applications</span>
-            </div>
-            <p className="brand-sub">Central Hub & Developer Workbench</p>
+            <h1 className="brand-name">Utilities by Drishtant</h1>
+            <p className="brand-sub">Personal Applications & Tools</p>
           </div>
         </div>
 
         <div className="header-actions">
-          <button
-            onClick={onOpenStatus}
-            className="action-pill-btn"
-            title="View Cloud & Deployment Status"
-          >
-            <Server size={14} className="pulse-icon" />
-            <span>Infrastructure Status</span>
-            <span className="status-dot-active" />
-          </button>
-
           <button
             onClick={onToggleTheme}
             className="theme-toggle-btn"
