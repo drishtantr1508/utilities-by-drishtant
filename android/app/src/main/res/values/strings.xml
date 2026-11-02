@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Utilities by Drishtant</string>
+    <string name="title_activity_main">Utilities by Drishtant</string>
+    <string name="package_name">com.drishtant.utilities</string>
+    <string name="custom_url_scheme">com.drishtant.utilities</string>
+</resources>
