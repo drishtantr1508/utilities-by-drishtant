@@ -4,7 +4,6 @@ import { AppItem } from './types';
 import { Navbar } from './components/Navbar';
 import { AppCard } from './components/AppCard';
 import { PreviewModal } from './components/PreviewModal';
-import { ConfigureUrlModal } from './components/ConfigureUrlModal';
 import { Search } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -17,17 +16,6 @@ export const App: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [previewApp, setPreviewApp] = useState<AppItem | null>(null);
-  const [configuringApp, setConfiguringApp] = useState<AppItem | null>(null);
-
-  // Custom URLs (e.g. for Streamlit deployed app)
-  const [customUrls, setCustomUrls] = useState<Record<string, string>>(() => {
-    try {
-      const saved = localStorage.getItem('utilities_custom_urls');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
@@ -36,15 +24,6 @@ export const App: React.FC = () => {
 
   const toggleTheme = () => {
     setIsDarkMode((prev) => !prev);
-  };
-
-  const handleSaveUrl = (url: string) => {
-    if (configuringApp) {
-      const updated = { ...customUrls, [configuringApp.id]: url };
-      setCustomUrls(updated);
-      localStorage.setItem('utilities_custom_urls', JSON.stringify(updated));
-      setConfiguringApp(null);
-    }
   };
 
   const filteredApps = useMemo(() => {
@@ -115,9 +94,7 @@ export const App: React.FC = () => {
                 <AppCard
                   key={app.id}
                   app={app}
-                  customUrl={customUrls[app.id]}
                   onPreview={(a) => setPreviewApp(a)}
-                  onConfigureUrl={(a) => setConfiguringApp(a)}
                 />
               ))}
             </div>
@@ -136,16 +113,7 @@ export const App: React.FC = () => {
       {/* Preview Modal */}
       <PreviewModal
         app={previewApp}
-        customUrl={previewApp ? customUrls[previewApp.id] : undefined}
         onClose={() => setPreviewApp(null)}
-      />
-
-      {/* Configure URL Modal */}
-      <ConfigureUrlModal
-        app={configuringApp}
-        currentUrl={configuringApp ? customUrls[configuringApp.id] || configuringApp.url : ''}
-        onSave={handleSaveUrl}
-        onClose={() => setConfiguringApp(null)}
       />
     </div>
   );

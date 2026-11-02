@@ -4,17 +4,16 @@ import { X, ExternalLink, RotateCw, Monitor, Tablet, Smartphone } from 'lucide-r
 
 interface PreviewModalProps {
   app: AppItem | null;
-  customUrl?: string;
   onClose: () => void;
 }
 
-export const PreviewModal: React.FC<PreviewModalProps> = ({ app, customUrl, onClose }) => {
+export const PreviewModal: React.FC<PreviewModalProps> = ({ app, onClose }) => {
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [iframeKey, setIframeKey] = useState(0);
 
   if (!app) return null;
 
-  const targetUrl = customUrl || app.previewUrl || app.url;
+  const targetUrl = app.previewUrl || app.url;
 
   const getViewportWidth = () => {
     switch (viewport) {

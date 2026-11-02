@@ -6,24 +6,17 @@ import {
   Camera,
   Calculator,
   FileText,
-  Settings,
 } from 'lucide-react';
 
 interface AppCardProps {
   app: AppItem;
-  customUrl?: string;
   onPreview: (app: AppItem) => void;
-  onConfigureUrl: (app: AppItem) => void;
 }
 
 export const AppCard: React.FC<AppCardProps> = ({
   app,
-  customUrl,
   onPreview,
-  onConfigureUrl,
 }) => {
-  const activeUrl = customUrl || app.url;
-
   const renderIcon = () => {
     switch (app.iconName) {
       case 'camera':
@@ -47,8 +40,6 @@ export const AppCard: React.FC<AppCardProps> = ({
         return <span className="status-badge status-dev">● Dev</span>;
     }
   };
-
-  const isConfigurable = app.id === 'salary-calculator';
 
   return (
     <div className="app-card">
@@ -80,7 +71,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         )}
 
         <a
-          href={activeUrl}
+          href={app.url}
           target="_blank"
           rel="noopener noreferrer"
           className="btn btn-primary"
@@ -88,16 +79,6 @@ export const AppCard: React.FC<AppCardProps> = ({
           <span>Launch</span>
           <ExternalLink size={13} />
         </a>
-
-        {isConfigurable && (
-          <button
-            onClick={() => onConfigureUrl(app)}
-            className="btn-icon"
-            title="Set Live Streamlit URL"
-          >
-            <Settings size={14} />
-          </button>
-        )}
       </div>
     </div>
   );
