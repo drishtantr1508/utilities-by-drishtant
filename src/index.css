@@ -87,6 +87,7 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
+  padding-top: env(safe-area-inset-top, 0px);
   transition: all 0.2s ease;
 }
 
@@ -413,7 +414,7 @@ body {
 /* Footer */
 .site-footer {
   border-top: 1px solid var(--color-border);
-  padding: 24px;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0px)) 24px;
   margin-top: auto;
 }
 
@@ -454,7 +455,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
   animation: fadeIn 0.18s ease-out;
 }
 

@@ -1,12 +1,41 @@
 import React from 'react';
-import { Sun, Moon, Command } from 'lucide-react';
+import { Sun, Moon, Laptop, Command } from 'lucide-react';
+
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 interface NavbarProps {
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
+  themeMode: ThemeMode;
+  isEffectiveDark: boolean;
+  onCycleTheme: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ isDarkMode, onToggleTheme }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  themeMode,
+  isEffectiveDark,
+  onCycleTheme,
+}) => {
+  const renderThemeIcon = () => {
+    switch (themeMode) {
+      case 'system':
+        return <Laptop size={16} />;
+      case 'dark':
+        return <Moon size={16} />;
+      case 'light':
+        return <Sun size={16} />;
+    }
+  };
+
+  const getThemeTitle = () => {
+    switch (themeMode) {
+      case 'system':
+        return `Theme: System (${isEffectiveDark ? 'Dark' : 'Light'}) — Tap to override`;
+      case 'dark':
+        return 'Theme: Dark (Manual) — Tap for Light';
+      case 'light':
+        return 'Theme: Light (Manual) — Tap for System';
+    }
+  };
+
   return (
     <header className="site-header">
       <div className="header-inner">
@@ -22,12 +51,12 @@ export const Navbar: React.FC<NavbarProps> = ({ isDarkMode, onToggleTheme }) => 
 
         <div className="header-actions">
           <button
-            onClick={onToggleTheme}
+            onClick={onCycleTheme}
             className="theme-toggle-btn"
             aria-label="Toggle theme mode"
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={getThemeTitle()}
           >
-            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            {renderThemeIcon()}
           </button>
         </div>
       </div>

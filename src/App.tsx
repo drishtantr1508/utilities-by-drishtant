@@ -1,29 +1,61 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { APPS_DATA } from './data/apps';
 import { AppItem } from './types';
-import { Navbar } from './components/Navbar';
+import { Navbar, ThemeMode } from './components/Navbar';
 import { AppCard } from './components/AppCard';
 import { PreviewModal } from './components/PreviewModal';
 import { Search } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 export const App: React.FC = () => {
-  // Theme state synced with system preference or localStorage
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('utilities_theme');
-    if (saved) return saved === 'dark';
+  // Theme preference: defaults to 'system' to strictly respect Android system dark/light mode
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('utilities_theme_mode');
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
+      return saved as ThemeMode;
+    }
+    return 'system';
+  });
+
+  const [systemIsDark, setSystemIsDark] = useState<boolean>(() => {
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  // Listen to live system dark mode changes from Android OS / Browser
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      setSystemIsDark(e.matches);
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  const isEffectiveDark = themeMode === 'system' ? systemIsDark : themeMode === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [previewApp, setPreviewApp] = useState<AppItem | null>(null);
 
+  // Sync DOM attribute, localStorage, and Native Status Bar
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-    localStorage.setItem('utilities_theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+    document.documentElement.setAttribute('data-theme', isEffectiveDark ? 'dark' : 'light');
+    localStorage.setItem('utilities_theme_mode', themeMode);
 
-  const toggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
+    // Sync native Android status bar overlay and icon colors
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      StatusBar.setStyle({ style: isEffectiveDark ? Style.Dark : Style.Light }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#00000000' }).catch(() => {});
+    }
+  }, [themeMode, isEffectiveDark]);
+
+  const cycleTheme = () => {
+    setThemeMode((prev) => {
+      if (prev === 'system') return 'dark';
+      if (prev === 'dark') return 'light';
+      return 'system';
+    });
   };
 
   const filteredApps = useMemo(() => {
@@ -39,7 +71,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="site-wrapper">
-      <Navbar isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+      <Navbar
+        themeMode={themeMode}
+        isEffectiveDark={isEffectiveDark}
+        onCycleTheme={cycleTheme}
+      />
 
       <main className="main-content">
         {/* Clean Hero Section */}
