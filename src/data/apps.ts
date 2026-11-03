@@ -19,7 +19,7 @@ export const APPS_DATA: AppItem[] = [
     description: 'A dynamic tax and payroll simulation engine for India’s New Tax Regime (Section 115BAC). Accurately recalculates monthly TDS when mid-year appraisal hikes, variable bonuses, or statutory EPF contributions fluctuate.',
     status: 'Live',
     url: 'https://salarycalculatorbydrishtant.streamlit.app/',
-    previewUrl: 'https://salarycalculatorbydrishtant.streamlit.app/',
+    previewUrl: 'https://salarycalculatorbydrishtant.streamlit.app/?embed=true',
     previewSupported: true,
     iconName: 'calculator',
   },
