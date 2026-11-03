@@ -31,3 +31,4 @@
         <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
     </style>
 </resources>
+

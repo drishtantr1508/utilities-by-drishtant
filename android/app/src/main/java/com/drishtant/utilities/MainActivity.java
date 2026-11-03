@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Window;
+import android.webkit.JavascriptInterface;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -14,12 +15,33 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupEdgeToEdge();
+        setupThemeBridge();
     }
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         setupEdgeToEdge();
+    }
+
+    private void setupThemeBridge() {
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void setSystemBarTheme(boolean isDark) {
+                    runOnUiThread(() -> applySystemBarTheme(isDark));
+                }
+            }, "AndroidThemeBridge");
+        }
+    }
+
+    private void applySystemBarTheme(boolean isDark) {
+        Window window = getWindow();
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(!isDark);
+            controller.setAppearanceLightNavigationBars(!isDark);
+        }
     }
 
     private void setupEdgeToEdge() {
@@ -41,11 +63,6 @@ public class MainActivity extends BridgeActivity {
         // 4. Adapt icon colors for status and navigation bars according to system dark/light theme
         int nightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         boolean isDark = nightMode == Configuration.UI_MODE_NIGHT_YES;
-
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-        if (controller != null) {
-            controller.setAppearanceLightStatusBars(!isDark);
-            controller.setAppearanceLightNavigationBars(!isDark);
-        }
+        applySystemBarTheme(isDark);
     }
 }

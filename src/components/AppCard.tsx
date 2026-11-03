@@ -6,15 +6,20 @@ import {
   Camera,
   Calculator,
   FileText,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AppCardProps {
   app: AppItem;
+  isOpen: boolean;
+  onLaunch: (app: AppItem) => void;
   onPreview: (app: AppItem) => void;
 }
 
 export const AppCard: React.FC<AppCardProps> = ({
   app,
+  isOpen,
+  onLaunch,
   onPreview,
 }) => {
   const renderIcon = () => {
@@ -31,6 +36,9 @@ export const AppCard: React.FC<AppCardProps> = ({
   };
 
   const getStatusBadge = () => {
+    if (isOpen) {
+      return <span className="status-badge status-live">● Running</span>;
+    }
     switch (app.status) {
       case 'Live':
         return <span className="status-badge status-live">● Live</span>;
@@ -42,7 +50,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   };
 
   return (
-    <div className="app-card">
+    <div className={`app-card ${isOpen ? 'app-card-active' : ''}`}>
       <div className="card-top">
         <div className="card-header-left">
           <div className="card-icon-frame">{renderIcon()}</div>
@@ -70,14 +78,32 @@ export const AppCard: React.FC<AppCardProps> = ({
           </button>
         )}
 
+        <button
+          onClick={() => onLaunch(app)}
+          className={`btn ${isOpen ? 'btn-resume' : 'btn-primary'}`}
+          title={isOpen ? 'Switch to running tool' : 'Launch tool inside app'}
+        >
+          {isOpen ? (
+            <>
+              <span className="live-dot">●</span>
+              <span>Resume Tool</span>
+            </>
+          ) : (
+            <>
+              <span>Launch</span>
+              <ArrowRight size={13} />
+            </>
+          )}
+        </button>
+
         <a
           href={app.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn btn-primary"
+          className="btn btn-icon"
+          title="Open in external browser"
         >
-          <span>Launch</span>
-          <ExternalLink size={13} />
+          <ExternalLink size={14} />
         </a>
       </div>
     </div>
