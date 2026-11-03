@@ -154,7 +154,7 @@ export const InAppToolView: React.FC<InAppToolViewProps> = ({
                 src={frameUrl}
                 title={tab.app.title}
                 className="tool-webview-iframe"
-                allow="camera; microphone; geolocation; clipboard-write; clipboard-read"
+                allow="camera; microphone; geolocation; clipboard-write; clipboard-read; vibrate"
               />
             </div>
           );
