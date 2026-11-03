@@ -10,6 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <!-- Netlify Badge & Drawer Removal -->
     <style>
+      #nl-badge-frame,
+      #nl-hud-frame,
+      iframe#nl-badge-frame,
+      iframe#nl-hud-frame,
+      iframe[id*="nl-badge"],
+      iframe[id*="nl-hud"],
+      iframe[title="Powered by Netlify"],
+      iframe[title="Netlify"],
       netlify-drawer,
       #netlify-drawer,
       .netlify-drawer,
@@ -37,6 +45,7 @@
         height: 0 !important;
         max-width: 0 !important;
         max-height: 0 !important;
+        clip-path: path("M0 0Z") !important;
         overflow: hidden !important;
         position: absolute !important;
         bottom: -9999px !important;
@@ -48,7 +57,18 @@
       (function() {
         function purgeNetlifyBadges() {
           try {
+            var hudScripts = document.querySelectorAll('script[data-nf-variant], script[src*="scripts/hud"]');
+            hudScripts.forEach(function(s) {
+              try { delete s.dataset.nfVariant; } catch(e) {}
+              try { s.remove(); } catch(e) {}
+            });
+
             var selectors = [
+              'iframe#nl-badge-frame',
+              'iframe#nl-hud-frame',
+              'iframe[title="Powered by Netlify"]',
+              'iframe[title="Netlify"]',
+              'iframe[srcdoc*="Powered by Netlify"]',
               'netlify-drawer',
               '#netlify-drawer',
               '.netlify-drawer',
@@ -91,9 +111,12 @@
             m.addedNodes.forEach(function(n) {
               if (n.nodeType === 1) {
                 var tag = (n.tagName || '').toLowerCase();
-                if (tag === 'netlify-drawer' || (n.id && n.id.indexOf('netlify') !== -1)) {
+                if (tag === 'iframe' && (n.id === 'nl-badge-frame' || n.id === 'nl-hud-frame' || n.getAttribute('title') === 'Powered by Netlify')) {
                   try { n.remove(); } catch(e) { n.style.display = 'none'; }
-                } else if (tag === 'script' && n.src && (n.src.includes('netlify.com/feedback') || n.src.includes('drawer.js'))) {
+                } else if (tag === 'netlify-drawer' || (n.id && n.id.indexOf('netlify') !== -1)) {
+                  try { n.remove(); } catch(e) { n.style.display = 'none'; }
+                } else if (tag === 'script' && (n.src && (n.src.includes('netlify.com/feedback') || n.src.includes('drawer.js') || n.src.includes('scripts/hud')) || n.dataset.nfVariant)) {
+                  try { delete n.dataset.nfVariant; } catch(e) {}
                   try { n.remove(); } catch(e) {}
                 } else if (n.textContent && n.textContent.toLowerCase().includes('powered by netlify')) {
                   try { n.remove(); } catch(e) { n.style.display = 'none'; }
@@ -120,6 +143,9 @@
     </script>
   </head>
   <body>
+    <!-- Pre-empt Netlify HUD script from executing by providing existing placeholder IDs -->
+    <div id="nl-badge-frame" style="display:none!important;width:0!important;height:0!important;" aria-hidden="true"></div>
+    <div id="nl-hud-frame" style="display:none!important;width:0!important;height:0!important;" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
