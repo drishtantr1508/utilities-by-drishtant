@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/appcard.tsx","./src/components/inapptoolview.tsx","./src/components/navbar.tsx","./src/components/previewmodal.tsx","./src/data/apps.ts"],"version":"6.0.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/appcard.tsx","./src/components/inapptoolview.tsx","./src/components/navbar.tsx","./src/components/previewmodal.tsx","./src/data/apps.ts","./src/utils/haptics.ts"],"version":"6.0.3"}

@@ -12,19 +12,62 @@ import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import java.util.Locale;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private Vibrator vibrator;
+    private TextToSpeech tts;
+    private boolean ttsInitialized = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupEdgeToEdge();
         initVibrator();
+        initTTS();
         setupBridges();
+    }
+
+    private void initTTS() {
+        try {
+            tts = new TextToSpeech(this, status -> {
+                if (status == TextToSpeech.SUCCESS) {
+                    ttsInitialized = true;
+                    tts.setLanguage(Locale.getDefault());
+                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override
+                        public void onStart(String utteranceId) {
+                            notifyTTSState("playing");
+                        }
+
+                        @Override
+                        public void onDone(String utteranceId) {
+                            notifyTTSState("stopped");
+                        }
+
+                        @Override
+                        public void onError(String utteranceId) {
+                            notifyTTSState("error");
+                        }
+                    });
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    private void notifyTTSState(String state) {
+        runOnUiThread(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                String js = "window.dispatchEvent(new CustomEvent('NATIVE_TTS_STATE', { detail: { state: '" + state + "' } }));" +
+                            "if (window.frames) { for (var i = 0; i < window.frames.length; i++) { try { window.frames[i].postMessage({ type: 'NATIVE_TTS_STATE', state: '" + state + "' }, '*'); } catch(e){} } }";
+                bridge.getWebView().evaluateJavascript(js, null);
+            }
+        });
     }
 
     private void initVibrator() {
@@ -89,6 +132,37 @@ public class MainActivity extends BridgeActivity {
                     triggerHapticEffect(type);
                 }
             }, "AndroidHapticsBridge");
+
+            // Native Text-To-Speech Bridge for in-app tools & WebViews
+            bridge.getWebView().addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void speak(String text) {
+                    if (tts != null && ttsInitialized && text != null && !text.isEmpty()) {
+                        runOnUiThread(() -> {
+                            try {
+                                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "read_aloud_" + System.currentTimeMillis());
+                            } catch (Exception ignored) {}
+                        });
+                    }
+                }
+
+                @JavascriptInterface
+                public void stop() {
+                    if (tts != null && ttsInitialized) {
+                        runOnUiThread(() -> {
+                            try {
+                                tts.stop();
+                                notifyTTSState("stopped");
+                            } catch (Exception ignored) {}
+                        });
+                    }
+                }
+
+                @JavascriptInterface
+                public boolean isSpeaking() {
+                    return tts != null && tts.isSpeaking();
+                }
+            }, "AndroidTTSBridge");
         }
     }
 
@@ -189,5 +263,16 @@ public class MainActivity extends BridgeActivity {
         int nightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         boolean isDark = nightMode == Configuration.UI_MODE_NIGHT_YES;
         applySystemBarTheme(isDark);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Exception ignored) {}
+        }
+        super.onDestroy();
     }
 }

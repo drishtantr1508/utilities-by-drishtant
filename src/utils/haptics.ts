@@ -52,12 +52,22 @@ export function triggerHaptic(type: HapticEffectType = 'click') {
 export function initGlobalHaptics() {
   if (typeof window === 'undefined') return;
 
-  // Listen for haptic events dispatched from in-app tool iframes
+  // Listen for haptic and native TTS events dispatched from in-app tool iframes
   window.addEventListener('message', (event) => {
     try {
       if (event.data && (event.data.type === 'HAPTIC_TRIGGER' || event.data.type === 'HAPTIC_FEEDBACK')) {
         const effect = event.data.effect || 'click';
         triggerHaptic(effect as HapticEffectType);
+      } else if (event.data?.type === 'TTS_SPEAK' && typeof event.data.text === 'string') {
+        const bridge = (window as any).AndroidTTSBridge;
+        if (bridge && typeof bridge.speak === 'function') {
+          bridge.speak(event.data.text);
+        }
+      } else if (event.data?.type === 'TTS_STOP') {
+        const bridge = (window as any).AndroidTTSBridge;
+        if (bridge && typeof bridge.stop === 'function') {
+          bridge.stop();
+        }
       }
     } catch (e) {}
   });
