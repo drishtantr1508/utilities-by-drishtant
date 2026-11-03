@@ -72,3 +72,4 @@ export function initGlobalHaptics() {
     }
   }, { capture: true, passive: true });
 }
+

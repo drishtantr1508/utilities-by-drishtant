@@ -147,6 +147,7 @@ export const InAppToolView: React.FC<InAppToolViewProps> = ({
             <div
               key={tab.app.id}
               className="tool-frame-layer"
+              data-app-id={tab.app.id}
               style={{ display: isVisible ? 'block' : 'none' }}
             >
               <iframe

@@ -886,6 +886,7 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .tool-webview-iframe {
@@ -894,6 +895,15 @@ body {
   border: none;
   outline: none;
   display: block;
+}
+
+/* For Streamlit Calculator: clip out any fixed bottom embed footer bar */
+.tool-frame-layer[data-app-id="salary-calculator"] {
+  overflow: hidden !important;
+}
+
+.tool-frame-layer[data-app-id="salary-calculator"] .tool-webview-iframe {
+  height: calc(100% + 44px) !important;
 }
 
 /* Active Tools Banner on Homepage */
