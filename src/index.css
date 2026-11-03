@@ -996,3 +996,39 @@ body {
   border-color: rgba(16, 185, 129, 0.4);
 }
 
+/* Hide Netlify Badge, Netlify Drawer, & "Powered by Netlify" floating pills */
+netlify-drawer,
+#netlify-drawer,
+.netlify-drawer,
+#netlify-badge,
+.netlify-badge,
+[data-netlify-badge],
+[data-netlify-drawer],
+[data-netlify-feedback],
+iframe[src*="netlify.com/feedback"],
+iframe[src*="drawer.netlify.com"],
+div[class*="netlify-drawer"],
+div[class*="NetlifyBadge"],
+div[class*="netlifyBadge"],
+div[id*="netlify-drawer"],
+div[id*="netlifyBadge"],
+a[href*="netlify.com"][class*="badge"],
+div[style*="fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]),
+div[style*="position:fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  bottom: -9999px !important;
+  right: -9999px !important;
+  z-index: -99999 !important;
+}
+
+

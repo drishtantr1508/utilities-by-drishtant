@@ -8,6 +8,116 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <!-- Netlify Badge & Drawer Removal -->
+    <style>
+      netlify-drawer,
+      #netlify-drawer,
+      .netlify-drawer,
+      #netlify-badge,
+      .netlify-badge,
+      [data-netlify-badge],
+      [data-netlify-drawer],
+      [data-netlify-feedback],
+      iframe[src*="netlify.com/feedback"],
+      iframe[src*="drawer.netlify.com"],
+      div[class*="netlify-drawer"],
+      div[class*="NetlifyBadge"],
+      div[class*="netlifyBadge"],
+      div[id*="netlify-drawer"],
+      div[id*="netlifyBadge"],
+      a[href*="netlify.com"][class*="badge"],
+      div[style*="fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]),
+      div[style*="position: fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]),
+      div[style*="position:fixed"][style*="bottom"][style*="right"]:has(a[href*="netlify"]) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        max-width: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        bottom: -9999px !important;
+        right: -9999px !important;
+        z-index: -99999 !important;
+      }
+    </style>
+    <script>
+      (function() {
+        function purgeNetlifyBadges() {
+          try {
+            var selectors = [
+              'netlify-drawer',
+              '#netlify-drawer',
+              '.netlify-drawer',
+              '#netlify-badge',
+              '.netlify-badge',
+              '[data-netlify-badge]',
+              '[data-netlify-drawer]',
+              '[data-netlify-feedback]',
+              'div[class*="netlify-drawer"]',
+              'div[class*="NetlifyBadge"]',
+              'div[class*="netlifyBadge"]',
+              'div[id*="netlify-drawer"]',
+              'div[id*="netlifyBadge"]',
+              'iframe[src*="netlify.com/feedback"]',
+              'iframe[src*="drawer.netlify.com"]'
+            ];
+            selectors.forEach(function(s) {
+              var found = document.querySelectorAll(s);
+              found.forEach(function(el) {
+                try { el.remove(); } catch(e) { el.style.display = 'none'; }
+              });
+            });
+
+            var elements = document.querySelectorAll('div, a, button');
+            elements.forEach(function(el) {
+              if (el.textContent && el.textContent.toLowerCase().includes('powered by netlify')) {
+                var comp = window.getComputedStyle ? window.getComputedStyle(el) : null;
+                if (comp && (comp.position === 'fixed' || comp.position === 'absolute')) {
+                  try { el.remove(); } catch(e) { el.style.display = 'none'; }
+                }
+              }
+            });
+          } catch(e) {}
+        }
+
+        purgeNetlifyBadges();
+
+        var observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(n) {
+              if (n.nodeType === 1) {
+                var tag = (n.tagName || '').toLowerCase();
+                if (tag === 'netlify-drawer' || (n.id && n.id.indexOf('netlify') !== -1)) {
+                  try { n.remove(); } catch(e) { n.style.display = 'none'; }
+                } else if (tag === 'script' && n.src && (n.src.includes('netlify.com/feedback') || n.src.includes('drawer.js'))) {
+                  try { n.remove(); } catch(e) {}
+                } else if (n.textContent && n.textContent.toLowerCase().includes('powered by netlify')) {
+                  try { n.remove(); } catch(e) { n.style.display = 'none'; }
+                }
+              }
+            });
+          });
+          purgeNetlifyBadges();
+        });
+
+        if (document.documentElement) {
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+          });
+        }
+
+        window.addEventListener('load', purgeNetlifyBadges);
+        setTimeout(purgeNetlifyBadges, 400);
+        setTimeout(purgeNetlifyBadges, 1200);
+        setTimeout(purgeNetlifyBadges, 3000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
