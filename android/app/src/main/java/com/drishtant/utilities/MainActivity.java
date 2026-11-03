@@ -1,6 +1,7 @@
 package com.drishtant.utilities;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.media.AudioAttributes;
@@ -29,6 +30,7 @@ public class MainActivity extends BridgeActivity {
     private TextToSpeech tts;
     private boolean ttsInitialized = false;
     private String pendingSpeechText = null;
+    private String pendingLaunchAppId = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,12 +39,43 @@ public class MainActivity extends BridgeActivity {
         initVibrator();
         initTTS();
         setupBridges();
+        handleWidgetLaunch(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleWidgetLaunch(intent);
+    }
+
+    private void handleWidgetLaunch(Intent intent) {
+        if (intent == null) return;
+        String appId = intent.getStringExtra("launch_app_id");
+        if (appId != null && !appId.trim().isEmpty()) {
+            pendingLaunchAppId = appId.trim();
+            dispatchWidgetLaunch();
+        }
+    }
+
+    private void dispatchWidgetLaunch() {
+        if (pendingLaunchAppId == null) return;
+        final String appId = pendingLaunchAppId;
+        runOnUiThread(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                pendingLaunchAppId = null;
+                String js = "window.dispatchEvent(new CustomEvent('WIDGET_LAUNCH', { detail: { appId: '" + appId + "' } }));" +
+                            "window.postMessage({ type: 'WIDGET_LAUNCH', appId: '" + appId + "' }, '*');";
+                bridge.getWebView().evaluateJavascript(js, null);
+            }
+        });
     }
 
     @Override
     public void onResume() {
         super.onResume();
         setupBridges();
+        dispatchWidgetLaunch();
         if (tts == null || !ttsInitialized) {
             initTTS();
         }
@@ -296,6 +329,15 @@ public class MainActivity extends BridgeActivity {
                     return tts != null && tts.isSpeaking();
                 }
             }, "AndroidTTSBridge");
+
+            // App Lifecycle & Widget Deep Link Bridge
+            bridge.getWebView().addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public String getInitialLaunchAppId() {
+                    String appId = getIntent() != null ? getIntent().getStringExtra("launch_app_id") : null;
+                    return appId != null ? appId : "";
+                }
+            }, "AndroidAppBridge");
         }
     }
 

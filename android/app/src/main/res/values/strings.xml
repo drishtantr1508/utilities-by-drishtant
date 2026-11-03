@@ -4,4 +4,6 @@
     <string name="title_activity_main">Utilities by Drishtant</string>
     <string name="package_name">com.drishtant.utilities</string>
     <string name="custom_url_scheme">com.drishtant.utilities</string>
+    <string name="widget_name">Utilities Hub</string>
+    <string name="widget_description">Quick launch personal tools with Material You dynamic wallpaper colors</string>
 </resources>

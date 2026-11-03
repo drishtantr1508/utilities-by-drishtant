@@ -105,6 +105,59 @@ export const App: React.FC = () => {
     setActiveTabId(app.id);
   };
 
+  // Handle Home Screen Widget Deep Links & Tool Launches
+  useEffect(() => {
+    const processAppLaunch = (targetId: string | null | undefined) => {
+      if (!targetId) return;
+      if (targetId === 'home') {
+        setActiveTabId('home');
+        return;
+      }
+      const matched = APPS_DATA.find((a) => a.id === targetId);
+      if (matched) {
+        handleLaunchApp(matched);
+      }
+    };
+
+    // 1. Check native AndroidAppBridge initial intent on startup
+    try {
+      const bridge = (window as any).AndroidAppBridge;
+      if (bridge && typeof bridge.getInitialLaunchAppId === 'function') {
+        const initial = bridge.getInitialLaunchAppId();
+        if (initial) {
+          processAppLaunch(initial);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Check URL search query parameter
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlApp = params.get('launch');
+      if (urlApp) {
+        processAppLaunch(urlApp);
+      }
+    } catch (e) {}
+
+    // 3. Listen for live widget events from MainActivity
+    const onCustomEvent = (e: any) => {
+      processAppLaunch(e.detail?.appId);
+    };
+    const onMessageEvent = (e: MessageEvent) => {
+      if (e.data?.type === 'WIDGET_LAUNCH') {
+        processAppLaunch(e.data.appId);
+      }
+    };
+
+    window.addEventListener('WIDGET_LAUNCH', onCustomEvent);
+    window.addEventListener('message', onMessageEvent);
+
+    return () => {
+      window.removeEventListener('WIDGET_LAUNCH', onCustomEvent);
+      window.removeEventListener('message', onMessageEvent);
+    };
+  }, []);
+
   const handleSelectTab = (tabId: string) => {
     setActiveTabId(tabId);
   };
