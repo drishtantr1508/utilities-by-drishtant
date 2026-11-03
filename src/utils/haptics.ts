@@ -62,11 +62,21 @@ export function initGlobalHaptics() {
         const bridge = (window as any).AndroidTTSBridge;
         if (bridge && typeof bridge.speak === 'function') {
           bridge.speak(event.data.text);
+        } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(event.data.text);
+            window.speechSynthesis.speak(utterance);
+          } catch (err) {}
         }
       } else if (event.data?.type === 'TTS_STOP') {
         const bridge = (window as any).AndroidTTSBridge;
         if (bridge && typeof bridge.stop === 'function') {
           bridge.stop();
+        } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch (err) {}
         }
       }
     } catch (e) {}

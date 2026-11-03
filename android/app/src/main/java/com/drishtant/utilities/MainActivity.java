@@ -3,6 +3,8 @@ package com.drishtant.utilities;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
@@ -14,7 +16,10 @@ import android.view.Window;
 import android.webkit.JavascriptInterface;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -23,6 +28,7 @@ public class MainActivity extends BridgeActivity {
     private Vibrator vibrator;
     private TextToSpeech tts;
     private boolean ttsInitialized = false;
+    private String pendingSpeechText = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,38 +39,164 @@ public class MainActivity extends BridgeActivity {
         setupBridges();
     }
 
-    private void initTTS() {
+    @Override
+    public void onResume() {
+        super.onResume();
+        setupBridges();
+        if (tts == null || !ttsInitialized) {
+            initTTS();
+        }
+    }
+
+    private synchronized void initTTS() {
+        if (ttsInitialized && tts != null) return;
+
         try {
-            tts = new TextToSpeech(this, status -> {
-                if (status == TextToSpeech.SUCCESS) {
+            Context appContext = getApplicationContext();
+            TextToSpeech.OnInitListener listener = status -> {
+                if (status == TextToSpeech.SUCCESS && tts != null) {
                     ttsInitialized = true;
-                    tts.setLanguage(Locale.getDefault());
-                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                        @Override
-                        public void onStart(String utteranceId) {
-                            notifyTTSState("playing");
+                    try {
+                        // 1. Force audio output to standard Media channel (speakers/headphones at media volume)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            AudioAttributes audioAttrs = new AudioAttributes.Builder()
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                    .build();
+                            tts.setAudioAttributes(audioAttrs);
                         }
 
-                        @Override
-                        public void onDone(String utteranceId) {
-                            notifyTTSState("stopped");
+                        // 2. Resilient locale setup: try system default first, then US, UK, or any available English
+                        int result = tts.setLanguage(Locale.getDefault());
+                        if (result < TextToSpeech.LANG_AVAILABLE) {
+                            result = tts.setLanguage(Locale.US);
+                            if (result < TextToSpeech.LANG_AVAILABLE) {
+                                result = tts.setLanguage(Locale.UK);
+                                if (result < TextToSpeech.LANG_AVAILABLE) {
+                                    Set<Locale> available = tts.getAvailableLanguages();
+                                    if (available != null) {
+                                        for (Locale loc : available) {
+                                            if (loc.getLanguage().equalsIgnoreCase("en") && tts.setLanguage(loc) >= TextToSpeech.LANG_AVAILABLE) {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
-                        @Override
-                        public void onError(String utteranceId) {
-                            notifyTTSState("error");
+                        tts.setSpeechRate(1.0f);
+                        tts.setPitch(1.0f);
+
+                        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                            @Override
+                            public void onStart(String utteranceId) {
+                                notifyTTSState("playing");
+                            }
+
+                            @Override
+                            public void onDone(String utteranceId) {
+                                notifyTTSState("stopped");
+                            }
+
+                            @Override
+                            public void onError(String utteranceId) {
+                                notifyTTSState("error");
+                            }
+                        });
+
+                        // 3. Flush any queued speech that was triggered prior to init completion
+                        if (pendingSpeechText != null) {
+                            final String queued = pendingSpeechText;
+                            pendingSpeechText = null;
+                            speakChunks(queued);
                         }
-                    });
+                    } catch (Exception e) {
+                        android.util.Log.e("MainActivity", "Error configuring TTS parameters", e);
+                    }
+                } else {
+                    android.util.Log.e("MainActivity", "TextToSpeech init failed with status: " + status);
+                    ttsInitialized = false;
+                    tts = null;
                 }
-            });
-        } catch (Exception ignored) {}
+            };
+
+            tts = new TextToSpeech(appContext, listener);
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Failed to construct TextToSpeech", e);
+            ttsInitialized = false;
+            tts = null;
+        }
+    }
+
+    private void speakChunks(String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        final String toSpeak = text.trim();
+
+        runOnUiThread(() -> {
+            if (tts != null && ttsInitialized) {
+                try {
+                    // Maximum safe chunk length is 3000 chars (Android TTS max limit is 4000)
+                    List<String> chunks = new ArrayList<>();
+                    if (toSpeak.length() <= 3000) {
+                        chunks.add(toSpeak);
+                    } else {
+                        // Split by sentence terminators or newlines
+                        String[] sentences = toSpeak.split("(?<=[.!?\\n])\\s+");
+                        StringBuilder current = new StringBuilder();
+                        for (String s : sentences) {
+                            if (current.length() + s.length() + 1 > 3000) {
+                                if (current.length() > 0) {
+                                    chunks.add(current.toString());
+                                    current = new StringBuilder();
+                                }
+                            }
+                            if (s.length() > 3000) {
+                                for (int i = 0; i < s.length(); i += 3000) {
+                                    chunks.add(s.substring(i, Math.min(i + 3000, s.length())));
+                                }
+                            } else {
+                                if (current.length() > 0) current.append(" ");
+                                current.append(s);
+                            }
+                        }
+                        if (current.length() > 0) {
+                            chunks.add(current.toString());
+                        }
+                    }
+
+                    boolean first = true;
+                    for (int i = 0; i < chunks.size(); i++) {
+                        String chunk = chunks.get(i);
+                        Bundle params = new Bundle();
+                        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC);
+                        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f);
+                        int queueMode = first ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+                        first = false;
+                        tts.speak(chunk, queueMode, params, "read_aloud_" + System.currentTimeMillis() + "_" + i);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("MainActivity", "TTS speak failed", e);
+                }
+            } else {
+                // If engine not ready yet, record pending text and re-trigger initialization
+                pendingSpeechText = toSpeak;
+                if (tts == null || !ttsInitialized) {
+                    initTTS();
+                }
+            }
+        });
     }
 
     private void notifyTTSState(String state) {
         runOnUiThread(() -> {
             if (bridge != null && bridge.getWebView() != null) {
                 String js = "window.dispatchEvent(new CustomEvent('NATIVE_TTS_STATE', { detail: { state: '" + state + "' } }));" +
-                            "if (window.frames) { for (var i = 0; i < window.frames.length; i++) { try { window.frames[i].postMessage({ type: 'NATIVE_TTS_STATE', state: '" + state + "' }, '*'); } catch(e){} } }";
+                            "window.postMessage({ type: 'NATIVE_TTS_STATE', state: '" + state + "' }, '*');" +
+                            "var iframes = document.querySelectorAll('iframe');" +
+                            "for (var i = 0; i < iframes.length; i++) {" +
+                            "  try { iframes[i].contentWindow.postMessage({ type: 'NATIVE_TTS_STATE', state: '" + state + "' }, '*'); } catch(e){}" +
+                            "}";
                 bridge.getWebView().evaluateJavascript(js, null);
             }
         });
@@ -92,6 +224,12 @@ public class MainActivity extends BridgeActivity {
 
     private void setupBridges() {
         if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().post(() -> {
+                try {
+                    bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+                } catch (Exception ignored) {}
+            });
+
             // Theme Bridge
             bridge.getWebView().addJavascriptInterface(new Object() {
                 @JavascriptInterface
@@ -137,25 +275,20 @@ public class MainActivity extends BridgeActivity {
             bridge.getWebView().addJavascriptInterface(new Object() {
                 @JavascriptInterface
                 public void speak(String text) {
-                    if (tts != null && ttsInitialized && text != null && !text.isEmpty()) {
-                        runOnUiThread(() -> {
-                            try {
-                                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "read_aloud_" + System.currentTimeMillis());
-                            } catch (Exception ignored) {}
-                        });
-                    }
+                    speakChunks(text);
                 }
 
                 @JavascriptInterface
                 public void stop() {
-                    if (tts != null && ttsInitialized) {
-                        runOnUiThread(() -> {
+                    runOnUiThread(() -> {
+                        pendingSpeechText = null;
+                        if (tts != null && ttsInitialized) {
                             try {
                                 tts.stop();
                                 notifyTTSState("stopped");
                             } catch (Exception ignored) {}
-                        });
-                    }
+                        }
+                    });
                 }
 
                 @JavascriptInterface
