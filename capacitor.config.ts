@@ -6,7 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    hostname: 'utilitiesbydrishtant.netlify.app'
+    hostname: 'utilitiesbydrishtant.netlify.app',
+    allowNavigation: [
+      'notionbydrishtant.netlify.app',
+      'utilitiesbydrishtant.netlify.app',
+      '*.netlify.app',
+      '*.onrender.com'
+    ]
   }
 };
 
