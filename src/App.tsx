@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { APPS_DATA } from './data/apps';
-import { AppItem } from './types';
+import { AppItem, BackGestureState } from './types';
 import { Navbar, ThemeMode } from './components/Navbar';
 import { AppCard } from './components/AppCard';
 import { PreviewModal } from './components/PreviewModal';
@@ -8,7 +8,22 @@ import { InAppToolView, ToolTab } from './components/InAppToolView';
 import { Search } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { App as CapApp } from '@capacitor/app';
+
+declare global {
+  interface Window {
+    AndroidThemeBridge?: {
+      setSystemBarTheme: (isDark: boolean) => void;
+    };
+    AndroidBackBridge?: {
+      setBackEnabled: (enabled: boolean) => void;
+    };
+    AndroidHapticsBridge?: {
+      click: () => void;
+      tick: () => void;
+      heavy: () => void;
+    };
+  }
+}
 
 export const App: React.FC = () => {
   // Theme preference: defaults to 'system' to strictly respect Android system dark/light mode
@@ -43,6 +58,12 @@ export const App: React.FC = () => {
   const [openTabs, setOpenTabs] = useState<ToolTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('home');
 
+  // Linear Navigation History Stack (avoids recursive loops between tools)
+  const [navHistory, setNavHistory] = useState<string[]>(['home']);
+
+  // Android Native Predictive Back Gesture Tracking
+  const [backGesture, setBackGesture] = useState<BackGestureState | null>(null);
+
   // Sync DOM attribute, localStorage, and Native Status Bar & Navigation Bar
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isEffectiveDark ? 'dark' : 'light');
@@ -61,29 +82,93 @@ export const App: React.FC = () => {
     }
   }, [themeMode, isEffectiveDark, activeTabId]);
 
-  // Handle Android Hardware Back Button
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      const handleBackButton = CapApp.addListener('backButton', () => {
-        // 1. If a preview modal is open, close it
-        if (previewApp) {
-          setPreviewApp(null);
-          return;
-        }
-        // 2. If viewing a tool, return to home catalog
-        if (activeTabId !== 'home') {
-          setActiveTabId('home');
-          return;
-        }
-        // 3. If already on home, minimize app
-        CapApp.minimizeApp().catch(() => {});
-      });
-
-      return () => {
-        handleBackButton.then((h) => h.remove());
-      };
+  // Navigate Back (unwinds linear history stack without recursion loops)
+  const navigateBack = useCallback(() => {
+    // 1. If preview modal is open, dismiss it first
+    if (previewApp) {
+      setPreviewApp(null);
+      return;
     }
-  }, [previewApp, activeTabId]);
+
+    // 2. Unwind the history stack
+    setNavHistory((prev) => {
+      if (prev.length <= 1) {
+        setActiveTabId('home');
+        return ['home'];
+      }
+      const nextStack = prev.slice(0, prev.length - 1);
+      const destination = nextStack[nextStack.length - 1] || 'home';
+      setActiveTabId(destination);
+      return nextStack;
+    });
+  }, [previewApp]);
+
+  // Dynamically inform Android whether the in-app back callback should be enabled
+  // If on homepage and no modal is open, backEnabled=false so Android OS triggers native predictive back-to-home!
+  useEffect(() => {
+    const canGoBackInApp = Boolean(previewApp || activeTabId !== 'home' || navHistory.length > 1);
+
+    if (window.AndroidBackBridge && typeof window.AndroidBackBridge.setBackEnabled === 'function') {
+      window.AndroidBackBridge.setBackEnabled(canGoBackInApp);
+    }
+  }, [previewApp, activeTabId, navHistory]);
+
+  // Listen for native Android 14+ Predictive Back Gesture events from MainActivity
+  useEffect(() => {
+    const handleNativePredictiveBack = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+
+      if (detail.type === 'START') {
+        const dest = previewApp
+          ? 'preview-modal'
+          : (navHistory.length > 1 ? navHistory[navHistory.length - 2] : 'home');
+
+        setBackGesture({
+          active: true,
+          progress: 0,
+          edge: detail.edge ?? 0,
+          touchX: detail.touchX,
+          touchY: detail.touchY,
+          destinationTabId: dest,
+        });
+      } else if (detail.type === 'PROGRESS') {
+        setBackGesture((prev) => {
+          if (!prev) {
+            const dest = previewApp
+              ? 'preview-modal'
+              : (navHistory.length > 1 ? navHistory[navHistory.length - 2] : 'home');
+            return {
+              active: true,
+              progress: detail.progress,
+              edge: detail.edge ?? 0,
+              touchX: detail.touchX,
+              touchY: detail.touchY,
+              destinationTabId: dest,
+            };
+          }
+          return {
+            ...prev,
+            progress: detail.progress,
+            touchX: detail.touchX,
+            touchY: detail.touchY,
+          };
+        });
+      } else if (detail.type === 'INVOKED') {
+        navigateBack();
+        setTimeout(() => {
+          setBackGesture(null);
+        }, 120);
+      } else if (detail.type === 'CANCELLED') {
+        setBackGesture(null);
+      }
+    };
+
+    window.addEventListener('NATIVE_PREDICTIVE_BACK', handleNativePredictiveBack);
+    return () => {
+      window.removeEventListener('NATIVE_PREDICTIVE_BACK', handleNativePredictiveBack);
+    };
+  }, [previewApp, navHistory, activeTabId, navigateBack]);
 
   const cycleTheme = () => {
     setThemeMode((prev) => {
@@ -102,7 +187,48 @@ export const App: React.FC = () => {
       }
       return [...prev, { app, iframeKey: 0 }];
     });
+    setNavHistory((prev) => {
+      if (prev[prev.length - 1] === app.id) return prev;
+      return [...prev, app.id];
+    });
     setActiveTabId(app.id);
+  };
+
+  const handleSelectTab = (tabId: string) => {
+    if (tabId === activeTabId) return;
+    if (tabId === 'home') {
+      handleReturnHome();
+      return;
+    }
+    setNavHistory((prev) => {
+      if (prev[prev.length - 1] === tabId) return prev;
+      return [...prev, tabId];
+    });
+    setActiveTabId(tabId);
+  };
+
+  const handleReturnHome = () => {
+    setNavHistory(['home']);
+    setActiveTabId('home');
+  };
+
+  const handleCloseTab = (appId: string) => {
+    setOpenTabs((prev) => prev.filter((t) => t.app.id !== appId));
+    setNavHistory((prev) => {
+      const remainingHistory = prev.filter((id) => id !== appId);
+      const cleanHistory = remainingHistory.length > 0 ? remainingHistory : ['home'];
+      if (activeTabId === appId) {
+        const nextActive = cleanHistory[cleanHistory.length - 1] || 'home';
+        setActiveTabId(nextActive);
+      }
+      return cleanHistory;
+    });
+  };
+
+  const handleReloadTab = (appId: string) => {
+    setOpenTabs((prev) =>
+      prev.map((t) => (t.app.id === appId ? { ...t, iframeKey: t.iframeKey + 1 } : t))
+    );
   };
 
   // Handle Home Screen Widget Deep Links & Tool Launches
@@ -110,7 +236,7 @@ export const App: React.FC = () => {
     const processAppLaunch = (targetId: string | null | undefined) => {
       if (!targetId) return;
       if (targetId === 'home') {
-        setActiveTabId('home');
+        handleReturnHome();
         return;
       }
       const matched = APPS_DATA.find((a) => a.id === targetId);
@@ -158,30 +284,6 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const handleSelectTab = (tabId: string) => {
-    setActiveTabId(tabId);
-  };
-
-  const handleCloseTab = (appId: string) => {
-    setOpenTabs((prev) => {
-      const remaining = prev.filter((t) => t.app.id !== appId);
-      if (activeTabId === appId) {
-        if (remaining.length > 0) {
-          setActiveTabId(remaining[remaining.length - 1].app.id);
-        } else {
-          setActiveTabId('home');
-        }
-      }
-      return remaining;
-    });
-  };
-
-  const handleReloadTab = (appId: string) => {
-    setOpenTabs((prev) =>
-      prev.map((t) => (t.app.id === appId ? { ...t, iframeKey: t.iframeKey + 1 } : t))
-    );
-  };
-
   const filteredApps = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return APPS_DATA;
@@ -193,8 +295,16 @@ export const App: React.FC = () => {
     );
   }, [searchQuery]);
 
+  const isBackToHome = Boolean(backGesture?.active && backGesture.destinationTabId === 'home');
+  const homeProgress = isBackToHome ? backGesture?.progress ?? 0 : 0;
+  const mainStyle: React.CSSProperties = {
+    transform: isBackToHome ? `scale(${0.96 + homeProgress * 0.04})` : 'none',
+    opacity: isBackToHome ? 0.75 + homeProgress * 0.25 : 1,
+    transition: homeProgress === 0 ? 'transform 0.25s ease, opacity 0.25s ease' : 'none',
+  };
+
   return (
-    <div className="site-wrapper">
+    <div className="site-wrapper" style={mainStyle}>
       <Navbar
         themeMode={themeMode}
         isEffectiveDark={isEffectiveDark}
@@ -214,7 +324,7 @@ export const App: React.FC = () => {
                 {openTabs.map((tab) => (
                   <button
                     key={tab.app.id}
-                    onClick={() => setActiveTabId(tab.app.id)}
+                    onClick={() => handleSelectTab(tab.app.id)}
                     className="active-pill"
                     title={`Resume ${tab.app.title}`}
                   >
@@ -301,15 +411,17 @@ export const App: React.FC = () => {
       <InAppToolView
         tabs={openTabs}
         activeTabId={activeTabId}
+        backGesture={backGesture}
         onSelectTab={handleSelectTab}
         onCloseTab={handleCloseTab}
         onReloadTab={handleReloadTab}
-        onReturnHome={() => setActiveTabId('home')}
+        onReturnHome={handleReturnHome}
       />
 
       {/* Quick Windowed Preview Modal */}
       <PreviewModal
         app={previewApp}
+        backGesture={backGesture}
         onClose={() => setPreviewApp(null)}
       />
     </div>

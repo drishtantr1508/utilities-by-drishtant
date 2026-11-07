@@ -9,3 +9,12 @@ export interface AppItem {
   previewSupported: boolean;
   iconName: 'camera' | 'calculator' | 'file-text';
 }
+
+export interface BackGestureState {
+  active: boolean;
+  progress: number;
+  edge: number; // 0 = left edge, 1 = right edge
+  touchX?: number;
+  touchY?: number;
+  destinationTabId: string;
+}

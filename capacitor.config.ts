@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
       '*.netlify.app',
       '*.onrender.com'
     ]
+  },
+  plugins: {
+    App: {
+      disableBackButtonHandler: true
+    }
   }
 };
 

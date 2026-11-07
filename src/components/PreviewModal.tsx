@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { AppItem } from '../types';
+import { AppItem, BackGestureState } from '../types';
 import { X, ExternalLink, RotateCw, Monitor, Tablet, Smartphone } from 'lucide-react';
 
 interface PreviewModalProps {
   app: AppItem | null;
+  backGesture?: BackGestureState | null;
   onClose: () => void;
 }
 
-export const PreviewModal: React.FC<PreviewModalProps> = ({ app, onClose }) => {
+export const PreviewModal: React.FC<PreviewModalProps> = ({ app, backGesture, onClose }) => {
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [iframeKey, setIframeKey] = useState(0);
 
   if (!app) return null;
 
   const targetUrl = app.previewUrl || app.url;
+
+  const isDismissing = Boolean(backGesture?.active && backGesture.destinationTabId === 'preview-modal');
+  const progress = isDismissing ? backGesture?.progress ?? 0 : 0;
 
   const getViewportWidth = () => {
     switch (viewport) {
@@ -27,8 +31,26 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({ app, onClose }) => {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+    <div 
+      className="modal-backdrop" 
+      onClick={onClose}
+      style={{
+        opacity: isDismissing ? 1 - progress * 0.5 : 1,
+        transition: isDismissing ? 'none' : 'opacity 0.2s ease',
+      }}
+    >
+      <div 
+        className="preview-modal" 
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          transform: isDismissing 
+            ? `scale(${1 - progress * 0.06}) translateY(${progress * 24}px)` 
+            : 'none',
+          opacity: isDismissing ? 1 - progress * 0.25 : 1,
+          transition: isDismissing ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease',
+          pointerEvents: isDismissing ? 'none' : 'auto',
+        }}
+      >
         {/* Preview Topbar */}
         <div className="preview-topbar">
           <div className="preview-info">

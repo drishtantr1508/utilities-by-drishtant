@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppItem } from '../types';
+import { AppItem, BackGestureState } from '../types';
 import { 
   ArrowLeft, 
   X, 
@@ -19,6 +19,7 @@ export interface ToolTab {
 interface InAppToolViewProps {
   tabs: ToolTab[];
   activeTabId: string;
+  backGesture?: BackGestureState | null;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (appId: string) => void;
   onReloadTab: (appId: string) => void;
@@ -28,6 +29,7 @@ interface InAppToolViewProps {
 export const InAppToolView: React.FC<InAppToolViewProps> = ({
   tabs,
   activeTabId,
+  backGesture,
   onSelectTab,
   onCloseTab,
   onReloadTab,
@@ -37,6 +39,12 @@ export const InAppToolView: React.FC<InAppToolViewProps> = ({
 
   const currentTab = tabs.find((t) => t.app.id === activeTabId);
   const targetApp = currentTab ? currentTab.app : tabs[0].app;
+
+  const isGestureActive = Boolean(backGesture?.active);
+  const progress = isGestureActive ? backGesture?.progress ?? 0 : 0;
+  const isTargetHome = backGesture?.destinationTabId === 'home';
+  const edge = backGesture?.edge ?? 0;
+  const translateXSign = edge === 0 ? 1 : -1;
 
   const renderIcon = (iconName: string, size = 13) => {
     switch (iconName) {
@@ -51,10 +59,29 @@ export const InAppToolView: React.FC<InAppToolViewProps> = ({
     }
   };
 
+  const wrapperStyle: React.CSSProperties = {
+    display: activeTabId === 'home' ? 'none' : 'flex',
+    ...(isGestureActive && isTargetHome
+      ? {
+          transform: `scale(${1 - progress * 0.08}) translateX(${progress * 28 * translateXSign}px)`,
+          borderRadius: `${Math.round(progress * 24)}px`,
+          boxShadow: `0 16px 48px rgba(0, 0, 0, ${0.15 + progress * 0.35})`,
+          overflow: 'hidden',
+          transition: progress === 0 ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1), border-radius 0.25s ease, box-shadow 0.25s ease' : 'none',
+          willChange: 'transform, border-radius',
+        }
+      : {
+          transform: 'none',
+          borderRadius: '0px',
+          boxShadow: 'none',
+          transition: 'transform 0.25s cubic-bezier(0.2, 0, 0, 1), border-radius 0.25s ease, box-shadow 0.25s ease',
+        }),
+  };
+
   return (
     <div
       className="in-app-tool-wrapper"
-      style={{ display: activeTabId === 'home' ? 'none' : 'flex' }}
+      style={wrapperStyle}
     >
       {/* Sleek Top Navigation Bar */}
       <header className="tool-navbar">
@@ -140,21 +167,61 @@ export const InAppToolView: React.FC<InAppToolViewProps> = ({
       {/* Edge-to-Edge Frames Canvas */}
       <main className="tool-frames-canvas">
         {tabs.map((tab) => {
-          const isVisible = activeTabId === tab.app.id;
+          const isCurrentActive = activeTabId === tab.app.id;
+          const isDestination = isGestureActive && backGesture?.destinationTabId === tab.app.id;
           const frameUrl = tab.app.previewUrl || tab.app.url;
+
+          if (!isCurrentActive && !isDestination) {
+            return null;
+          }
+
+          let layerStyle: React.CSSProperties = {};
+          if (isCurrentActive) {
+            layerStyle = {
+              display: 'block',
+              zIndex: 5,
+              ...(isGestureActive && !isTargetHome
+                ? {
+                    transform: `scale(${1 - progress * 0.07}) translateX(${progress * 36 * translateXSign}px)`,
+                    borderRadius: `${Math.round(progress * 24)}px`,
+                    boxShadow: `0 16px 48px rgba(0, 0, 0, ${0.15 + progress * 0.35})`,
+                    overflow: 'hidden',
+                    transition: progress === 0 ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1), border-radius 0.25s ease' : 'none',
+                    willChange: 'transform, border-radius',
+                  }
+                : {
+                    transform: 'none',
+                    borderRadius: '0px',
+                    transition: 'transform 0.25s cubic-bezier(0.2, 0, 0, 1), border-radius 0.25s ease',
+                  }),
+            };
+          } else if (isDestination) {
+            // Preview destination tool underneath during predictive back gesture!
+            layerStyle = {
+              display: 'block',
+              zIndex: 1,
+              transform: `scale(${0.94 + progress * 0.06})`,
+              opacity: 0.75 + progress * 0.25,
+              transition: progress === 0 ? 'transform 0.25s ease, opacity 0.25s ease' : 'none',
+              pointerEvents: 'none',
+            };
+          }
 
           return (
             <div
               key={tab.app.id}
               className="tool-frame-layer"
               data-app-id={tab.app.id}
-              style={{ display: isVisible ? 'block' : 'none' }}
+              style={layerStyle}
             >
               <iframe
                 key={tab.iframeKey}
                 src={frameUrl}
                 title={tab.app.title}
                 className="tool-webview-iframe"
+                style={{
+                  pointerEvents: isGestureActive ? 'none' : 'auto',
+                }}
                 allow="camera; microphone; geolocation; clipboard-write; clipboard-read; vibrate; autoplay"
               />
             </div>

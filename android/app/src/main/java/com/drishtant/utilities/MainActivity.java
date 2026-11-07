@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import androidx.activity.BackEventCompat;
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -31,6 +34,7 @@ public class MainActivity extends BridgeActivity {
     private boolean ttsInitialized = false;
     private String pendingSpeechText = null;
     private String pendingLaunchAppId = null;
+    private OnBackPressedCallback predictiveBackCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +42,7 @@ public class MainActivity extends BridgeActivity {
         setupEdgeToEdge();
         initVibrator();
         initTTS();
+        setupPredictiveBack();
         setupBridges();
         handleWidgetLaunch(getIntent());
     }
@@ -338,7 +343,59 @@ public class MainActivity extends BridgeActivity {
                     return appId != null ? appId : "";
                 }
             }, "AndroidAppBridge");
+
+            // Predictive Back Gesture Bridge
+            bridge.getWebView().addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void setBackEnabled(boolean enabled) {
+                    runOnUiThread(() -> {
+                        if (predictiveBackCallback != null) {
+                            predictiveBackCallback.setEnabled(enabled);
+                        }
+                    });
+                }
+            }, "AndroidBackBridge");
         }
+    }
+
+    private void setupPredictiveBack() {
+        predictiveBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
+                dispatchBackGesture("START", backEvent.getProgress(), backEvent.getSwipeEdge(), backEvent.getTouchX(), backEvent.getTouchY());
+            }
+
+            @Override
+            public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
+                dispatchBackGesture("PROGRESS", backEvent.getProgress(), backEvent.getSwipeEdge(), backEvent.getTouchX(), backEvent.getTouchY());
+            }
+
+            @Override
+            public void handleOnBackPressed() {
+                dispatchBackGesture("INVOKED", 1.0f, 0, 0, 0);
+            }
+
+            @Override
+            public void handleOnBackCancelled() {
+                dispatchBackGesture("CANCELLED", 0.0f, 0, 0, 0);
+            }
+        };
+
+        getOnBackPressedDispatcher().addCallback(this, predictiveBackCallback);
+    }
+
+    private void dispatchBackGesture(String type, float progress, int swipeEdge, float touchX, float touchY) {
+        runOnUiThread(() -> {
+            if (bridge != null && bridge.getWebView() != null) {
+                String js = "window.dispatchEvent(new CustomEvent('NATIVE_PREDICTIVE_BACK', { detail: { " +
+                            "type: '" + type + "', " +
+                            "progress: " + progress + ", " +
+                            "edge: " + swipeEdge + ", " +
+                            "touchX: " + touchX + ", " +
+                            "touchY: " + touchY + " } }));";
+                bridge.getWebView().evaluateJavascript(js, null);
+            }
+        });
     }
 
     private void triggerHapticEffect(String type) {

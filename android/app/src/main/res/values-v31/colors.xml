@@ -10,3 +10,4 @@
     <color name="widget_accent_container">@android:color/system_accent1_100</color>
     <color name="widget_accent_text">@android:color/system_accent1_900</color>
 </resources>
+

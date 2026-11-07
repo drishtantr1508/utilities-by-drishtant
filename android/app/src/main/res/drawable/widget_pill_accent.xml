@@ -4,3 +4,4 @@
     <solid android:color="@color/widget_accent_container" />
     <corners android:radius="100dp" />
 </shape>
+

@@ -49,3 +49,4 @@ public class UtilitiesWidgetProvider extends AppWidgetProvider {
         );
     }
 }
+
